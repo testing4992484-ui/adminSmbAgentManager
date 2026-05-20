@@ -3,12 +3,19 @@ import AdminLayout from '../components/AdminLayout';
 import { useAdmin } from '../context/AdminContext';
 import useAdminSettings from '../hooks/useAdminSettings';
 import { updateAdminSettings, logAdminAction } from '../utils/adminFirebase';
+import { auth } from '../../config/firebase';
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 
 export default function SettingsPage() {
   const { settings, loading } = useAdminSettings();
   const { adminUser, showToast } = useAdmin();
   const [localVals, setLocalVals] = useState({});
   const [saving, setSaving] = useState({});
+
+  const [curPass, setCurPass]   = useState('');
+  const [newPass, setNewPass]   = useState('');
+  const [confPass, setConfPass] = useState('');
+  const [passLoading, setPassLoading] = useState(false);
 
   const val = (key) => localVals[key] !== undefined ? localVals[key] : settings[key];
   const set = (key, v) => setLocalVals(p => ({ ...p, [key]: v }));
@@ -28,11 +35,78 @@ export default function SettingsPage() {
     await save(key, newVal);
   };
 
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    if (newPass !== confPass) {
+      showToast('Naya password aur confirm password match nahi kar rahe!', 'error');
+      return;
+    }
+    if (newPass.length < 6) {
+      showToast('Password kam se kam 6 characters ka hona chahiye!', 'error');
+      return;
+    }
+    setPassLoading(true);
+    try {
+      const credential = EmailAuthProvider.credential(adminUser.email, curPass);
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      await updatePassword(auth.currentUser, newPass);
+      showToast('Password successfully change ho gaya!', 'success');
+      setCurPass('');
+      setNewPass('');
+      setConfPass('');
+    } catch (err) {
+      const msgs = {
+        'auth/wrong-password': 'Purana password galat hai!',
+        'auth/invalid-credential': 'Purana password galat hai!',
+        'auth/too-many-requests': 'Bahut zyada tries! Thodi der baad try karo.',
+        'auth/requires-recent-login': 'Pehle logout karke dobara login karo, phir password change karo.'
+      };
+      showToast(msgs[err.code] || 'Password change nahi ho saka. Dobara try karo.', 'error');
+    }
+    setPassLoading(false);
+  };
+
   if (loading) return <AdminLayout title="⚙️ Settings"><div className="skeleton" style={{ height: 400, borderRadius: 16 }} /></AdminLayout>;
 
   return (
     <AdminLayout title="⚙️ System Settings">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+
+        <Card title="🔑 Password Change">
+          <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Purana Password</label>
+              <input
+                type="password" value={curPass}
+                onChange={e => setCurPass(e.target.value)}
+                required placeholder="••••••••"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Naya Password</label>
+              <input
+                type="password" value={newPass}
+                onChange={e => setNewPass(e.target.value)}
+                required placeholder="••••••••"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Confirm Naya Password</label>
+              <input
+                type="password" value={confPass}
+                onChange={e => setConfPass(e.target.value)}
+                required placeholder="••••••••"
+                style={inputStyle}
+              />
+            </div>
+            <button type="submit" disabled={passLoading} style={{ ...saveBtn, marginTop: 4 }}>
+              {passLoading ? 'Change ho raha hai...' : '🔐 Password Change Karo'}
+            </button>
+          </form>
+        </Card>
+
         <Card title="🚧 Maintenance Mode">
           <ToggleRow
             label="Maintenance Mode"
@@ -97,6 +171,7 @@ export default function SettingsPage() {
             <button onClick={() => save('appVersion', val('appVersion'))} style={smallSaveBtn}>Save</button>
           </SettingRow>
         </Card>
+
       </div>
     </AdminLayout>
   );
@@ -129,7 +204,7 @@ const SettingRow = ({ label, children }) => (
 );
 
 const labelStyle = { display: 'block', color: '#8e8e9f', fontFamily: 'Outfit,sans-serif', fontSize: 12, fontWeight: 500, marginBottom: 6 };
-const inputStyle = { width: '100%', padding: '10px 14px', background: '#0d0d1a', border: '1px solid #2a2a4a', borderRadius: 10, color: '#f0f0f5', fontSize: 14, outline: 'none', fontFamily: 'Outfit,sans-serif', marginBottom: 10 };
+const inputStyle = { width: '100%', padding: '10px 14px', background: '#0d0d1a', border: '1px solid #2a2a4a', borderRadius: 10, color: '#f0f0f5', fontSize: 14, outline: 'none', fontFamily: 'Outfit,sans-serif', marginBottom: 4, boxSizing: 'border-box' };
 const numInput = { width: 100, padding: '7px 10px', background: '#0d0d1a', border: '1px solid #2a2a4a', borderRadius: 8, color: '#f0f0f5', fontSize: 14, outline: 'none', fontFamily: 'Outfit,sans-serif', textAlign: 'right' };
 const saveBtn = { padding: '9px 18px', background: '#9d00ff', border: 'none', borderRadius: 10, color: '#fff', fontFamily: 'Outfit,sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer', width: '100%' };
 const smallSaveBtn = { padding: '7px 14px', background: '#9d00ff22', border: '1px solid #9d00ff55', borderRadius: 8, color: '#9d00ff', fontFamily: 'Outfit,sans-serif', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
