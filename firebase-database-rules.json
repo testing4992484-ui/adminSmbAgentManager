@@ -1,36 +1,71 @@
 {
   "rules": {
 
+    /* ==========================================
+       SABKA MASTI BAZAAR — Firebase Rules
+       (User Panel + Admin Panel dono ke liye)
+       ========================================== */
+
+    /* ---- ADMINS ---- */
     "admins": {
-      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".read":  "auth != null && root.child('admins').child(auth.uid).val() === true",
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
     },
 
+    /* ---- ADMIN SETTINGS ---- */
     "adminSettings": {
-      ".read": "auth != null",
+      ".read":  "auth != null",
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
     },
 
+    /* ---- ADMIN LOGS / AUDIT ---- */
     "adminLogs": {
-      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".read":  "auth != null && root.child('admins').child(auth.uid).val() === true",
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
     },
 
+    /* ---- ORDERS ---- */
     "orders": {
-      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".read":  "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$orderId": {
         ".write": "auth != null"
       }
     },
 
+    /* ---- USERS ---- */
     "users": {
       ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+        ".read":  "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+
+        "activity": {
+          "$actId": {
+            ".read":  "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        },
+
+        "withdrawals": {
+          "$wid": {
+            ".read":  "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)",
+            ".write": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).val() === true)"
+          }
+        },
+
+        "missions": {
+          ".read":  "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid"
+        },
+
+        "settings": {
+          ".read":  "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid"
+        }
       }
     },
 
+    /* ---- PUBLIC PROFILES (Leaderboard) ---- */
     "public_profiles": {
       ".read": "auth != null",
       "$uid": {
@@ -38,13 +73,15 @@
       }
     },
 
+    /* ---- GAME POOL ---- */
     "gamePool": {
-      ".read": "auth != null",
+      ".read":  "auth != null",
       ".write": "auth != null"
     },
 
+    /* ---- GLOBAL MISSIONS (Admin set karta hai) ---- */
     "missions": {
-      ".read": "auth != null",
+      ".read":  "auth != null",
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
     }
 
