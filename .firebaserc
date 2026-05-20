@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "asli-masti-bazaar"
+  },
+  "targets": {
+    "asli-masti-bazaar": {
+      "hosting": {
+        "admin": [
+          "asli-masti-bazaar-admin-tools"
+        ]
+      }
+    }
   }
 }
