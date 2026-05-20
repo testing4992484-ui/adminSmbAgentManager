@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "asli-masti-bazaar-admin-tools",
     "public": "dist",
     "ignore": [
       "firebase.json",
