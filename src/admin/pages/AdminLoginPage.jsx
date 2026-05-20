@@ -4,7 +4,11 @@ import { auth, db, googleProvider } from '../../config/firebase';
 import { signInWithEmailAndPassword, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
 
-const SUPER_ADMIN_EMAIL = 'commentschor70068@gmail.com';
+const SUPER_ADMIN_EMAILS = ['commentschor70068@gmail.com'];
+
+function isSuperAdmin(email) {
+  return SUPER_ADMIN_EMAILS.includes((email || '').toLowerCase());
+}
 
 export default function AdminLoginPage() {
   const [email, setEmail]       = useState('');
@@ -18,6 +22,11 @@ export default function AdminLoginPage() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        if (isSuperAdmin(user.email)) {
+          try { await set(ref(db, `admins/${user.uid}`), true); } catch (_) {}
+          navigate('/admin');
+          return;
+        }
         const snap = await get(ref(db, `admins/${user.uid}`));
         if (snap.exists() && snap.val()) {
           navigate('/admin');
@@ -35,6 +44,11 @@ export default function AdminLoginPage() {
     setLoading(true);
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
+      if (isSuperAdmin(cred.user.email)) {
+        try { await set(ref(db, `admins/${cred.user.uid}`), true); } catch (_) {}
+        navigate('/admin');
+        return;
+      }
       const snap = await get(ref(db, `admins/${cred.user.uid}`));
       if (!snap.exists() || !snap.val()) {
         await auth.signOut();
@@ -45,12 +59,12 @@ export default function AdminLoginPage() {
       navigate('/admin');
     } catch (err) {
       const msgs = {
-        'auth/invalid-credential': 'Email ya password galat hai!',
-        'auth/user-not-found': 'Yeh email registered nahi hai.',
-        'auth/wrong-password': 'Password galat hai!',
-        'auth/too-many-requests': 'Bahut zyada tries! Thodi der baad try karo.'
+        'auth/invalid-credential':  'Email ya password galat hai!',
+        'auth/user-not-found':      'Yeh email registered nahi hai.',
+        'auth/wrong-password':      'Password galat hai!',
+        'auth/too-many-requests':   'Bahut zyada tries! Thodi der baad try karo.'
       };
-      setError(msgs[err.code] || 'Login fail ho gaya. Dobara try karo.');
+      setError(msgs[err.code] || `Login fail: ${err.code}`);
       setLoading(false);
     }
   };
@@ -60,109 +74,95 @@ export default function AdminLoginPage() {
     setGLoading(true);
     try {
       const cred = await signInWithPopup(auth, googleProvider);
-      const user = cred.user;
+      const user  = cred.user;
+
+      if (isSuperAdmin(user.email)) {
+        try { await set(ref(db, `admins/${user.uid}`), true); } catch (_) {}
+        navigate('/admin');
+        return;
+      }
 
       const snap = await get(ref(db, `admins/${user.uid}`));
-      const isAdmin = snap.exists() && snap.val();
-
-      if (!isAdmin) {
-        if (user.email === SUPER_ADMIN_EMAIL) {
-          await set(ref(db, `admins/${user.uid}`), true);
-        } else {
-          await auth.signOut();
-          setError('Tum admin nahi ho! Access denied.');
-          setGLoading(false);
-          return;
-        }
+      if (!snap.exists() || !snap.val()) {
+        await auth.signOut();
+        setError('Tum admin nahi ho! Access denied.');
+        setGLoading(false);
+        return;
       }
       navigate('/admin');
     } catch (err) {
       if (err.code !== 'auth/popup-closed-by-user') {
-        setError('Google login fail ho gaya. Dobara try karo.');
+        setError(`Google login fail: ${err.code}`);
       }
       setGLoading(false);
     }
   };
 
   if (checking) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#090914' }}>
-      <div className="skeleton" style={{ width: 60, height: 60, borderRadius: '50%' }} />
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#090914' }}>
+      <div className="skeleton" style={{ width:60, height:60, borderRadius:'50%' }} />
     </div>
   );
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#090914',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 20, fontFamily: 'Outfit, sans-serif'
+      minHeight:'100vh', background:'#090914',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      padding:20, fontFamily:'Outfit, sans-serif'
     }}>
       <div className="admin-page-enter" style={{
-        background: '#151528', border: '1px solid #2a2a4a',
-        borderRadius: 24, padding: '40px 36px', width: '100%', maxWidth: 400
+        background:'#151528', border:'1px solid #2a2a4a',
+        borderRadius:24, padding:'40px 36px', width:'100%', maxWidth:400
       }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🎮</div>
-          <h1 style={{ color: '#f0f0f5', fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Admin Panel</h1>
-          <p style={{ color: '#8e8e9f', fontSize: 14 }}>Sabka Masti Bazaar</p>
+        <div style={{ textAlign:'center', marginBottom:32 }}>
+          <div style={{ fontSize:48, marginBottom:12 }}>🎮</div>
+          <h1 style={{ color:'#f0f0f5', fontSize:26, fontWeight:800, marginBottom:4 }}>Admin Panel</h1>
+          <p style={{ color:'#8e8e9f', fontSize:14 }}>Sabka Masti Bazaar</p>
         </div>
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={handleLogin} style={{ display:'flex', flexDirection:'column', gap:16 }}>
           <div>
-            <label style={{ color: '#8e8e9f', fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 6 }}>Email</label>
-            <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              placeholder="admin@example.com"
-              style={inputStyle}
-            />
+            <label style={labelSt}>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+              placeholder="admin@example.com" style={inputSt} />
           </div>
           <div>
-            <label style={{ color: '#8e8e9f', fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 6 }}>Password</label>
-            <input
-              type="password" value={password} onChange={e => setPassword(e.target.value)} required
-              placeholder="••••••••"
-              style={inputStyle}
-            />
+            <label style={labelSt}>Password</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+              placeholder="••••••••" style={inputSt} />
           </div>
 
           {error && (
-            <div style={{
-              background: 'rgba(255,0,60,0.1)', border: '1px solid #ff003c',
-              borderRadius: 10, padding: '10px 14px', color: '#ff003c', fontSize: 14
-            }}>
+            <div style={{ background:'rgba(255,0,60,0.1)', border:'1px solid #ff003c', borderRadius:10, padding:'10px 14px', color:'#ff003c', fontSize:13 }}>
               {error}
             </div>
           )}
 
           <button type="submit" disabled={loading || gLoading} className="admin-btn" style={{
-            padding: '14px', borderRadius: 14,
-            background: '#9d00ff', border: 'none',
-            color: '#fff', fontSize: 16, fontWeight: 700,
-            boxShadow: '0 0 24px rgba(157,0,255,0.4)',
-            opacity: (loading || gLoading) ? 0.7 : 1, marginTop: 4,
-            fontFamily: 'Outfit,sans-serif', cursor: 'pointer'
+            padding:'14px', borderRadius:14, background:'#9d00ff', border:'none',
+            color:'#fff', fontSize:16, fontWeight:700,
+            boxShadow:'0 0 24px rgba(157,0,255,0.4)',
+            opacity:(loading || gLoading) ? 0.7 : 1, marginTop:4,
+            fontFamily:'Outfit,sans-serif', cursor:'pointer'
           }}>
             {loading ? 'Login ho raha hai...' : '🔐 Login Karo'}
           </button>
         </form>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-          <div style={{ flex: 1, height: 1, background: '#2a2a4a' }} />
-          <span style={{ color: '#8e8e9f', fontSize: 13 }}>ya</span>
-          <div style={{ flex: 1, height: 1, background: '#2a2a4a' }} />
+        <div style={{ display:'flex', alignItems:'center', gap:12, margin:'20px 0' }}>
+          <div style={{ flex:1, height:1, background:'#2a2a4a' }} />
+          <span style={{ color:'#8e8e9f', fontSize:13 }}>ya</span>
+          <div style={{ flex:1, height:1, background:'#2a2a4a' }} />
         </div>
 
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading || gLoading}
-          style={{
-            width: '100%', padding: '13px', borderRadius: 14,
-            background: '#1a1a2e', border: '1px solid #2a2a4a',
-            color: '#f0f0f5', fontSize: 15, fontWeight: 600,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            cursor: 'pointer', fontFamily: 'Outfit,sans-serif',
-            opacity: (loading || gLoading) ? 0.7 : 1
-          }}
-        >
+        <button onClick={handleGoogleLogin} disabled={loading || gLoading} style={{
+          width:'100%', padding:'13px', borderRadius:14,
+          background:'#1a1a2e', border:'1px solid #2a2a4a',
+          color:'#f0f0f5', fontSize:15, fontWeight:600,
+          display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+          cursor:'pointer', fontFamily:'Outfit,sans-serif',
+          opacity:(loading || gLoading) ? 0.7 : 1
+        }}>
           {gLoading ? 'Connecting...' : (
             <>
               <svg width="20" height="20" viewBox="0 0 48 48">
@@ -176,7 +176,7 @@ export default function AdminLoginPage() {
           )}
         </button>
 
-        <p style={{ color: '#8e8e9f', fontSize: 12, textAlign: 'center', marginTop: 20 }}>
+        <p style={{ color:'#8e8e9f', fontSize:12, textAlign:'center', marginTop:20 }}>
           Sirf authorized admins hi yahan aa sakte hain.
         </p>
       </div>
@@ -184,10 +184,5 @@ export default function AdminLoginPage() {
   );
 }
 
-const inputStyle = {
-  width: '100%', padding: '12px 16px',
-  background: '#0d0d1a', border: '1px solid #2a2a4a',
-  borderRadius: 12, color: '#f0f0f5', fontSize: 15,
-  outline: 'none', fontFamily: 'Outfit,sans-serif',
-  boxSizing: 'border-box'
-};
+const labelSt = { display:'block', color:'#8e8e9f', fontSize:13, fontWeight:500, marginBottom:6 };
+const inputSt  = { width:'100%', padding:'12px 16px', background:'#0d0d1a', border:'1px solid #2a2a4a', borderRadius:12, color:'#f0f0f5', fontSize:15, outline:'none', fontFamily:'Outfit,sans-serif', boxSizing:'border-box' };
