@@ -9,6 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 
 const GAMES = ['Lucky Spin', 'Coin Flip', 'Coin Mines', 'Crash', 'Color Predict'];
 const COLORS = ['#9d00ff', '#ff00d4', '#ffbe0b', '#00f0ff', '#39ff14'];
+const POOL_KEYS = ['luckySpin','coinFlip','coinMines','crash','colorPredict'];
 
 export default function GameStatsPage() {
   const { gamePool, loading: gLoad } = useGamePool();
@@ -58,7 +59,7 @@ export default function GameStatsPage() {
   return (
     <AdminLayout title="🎮 Game Statistics">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
-        <StatBox label="🏦 House Pool" value={formatNumber(gamePool.housePool || 0)} sub="coins" color="#ffbe0b" />
+        <StatBox label="🏦 Total Pool" value={formatNumber(POOL_KEYS.reduce((s,k) => s + (gamePool[k]?.pool || 0), 0))} sub="coins" color="#ffbe0b" />
         <StatBox label="🎮 Total Games" value={formatNumber(gamePool.totalGamesPlayed || 0)} color="#9d00ff" />
         <StatBox label="🪙 Total Won" value={formatNumber(gamePool.totalCoinsWon || 0)} color="#00f0ff" />
         <StatBox label="⚠️ Suspicious Today" value={suspicious.length} color="#ff003c" />
@@ -109,6 +110,7 @@ export default function GameStatsPage() {
               <InfoRow label="Losses" value={formatNumber(losses.length)} />
               <InfoRow label="House Profit" value={<span style={{ color: profit >= 0 ? '#39ff14' : '#ff003c' }}>{profit >= 0 ? '+' : ''}{formatNumber(profit)} 🪙</span>} />
               <InfoRow label="Win Rate" value={`${acts.length ? Math.round((wins.length / acts.length) * 100) : 0}%`} />
+              <InfoRow label="🏦 Pool" value={<span style={{color:'#ffbe0b',fontWeight:700}}>{formatNumber(gamePool[POOL_KEYS[i]]?.pool || 0)} 🪙</span>} />
             </div>
           );
         })}
