@@ -3,7 +3,7 @@ import AdminLayout from '../components/AdminLayout';
 import useGamePool from '../hooks/useGamePool';
 import useUsers from '../hooks/useUsers';
 import { db } from '../../config/firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, remove, set, get } from 'firebase/database';
 import { formatNumber, coinsToINR, isTodayIST } from '../utils/formatters';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -16,6 +16,30 @@ export default function GameStatsPage() {
   const { users, loading: uLoad } = useUsers();
   const [allActivity, setAllActivity] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
+
+  const resetAllStats = async () => {
+    if (!window.confirm('⚠️ Sab game stats aur activity data ZERO ho jayega!\n\nPool amounts bhi reset honge. Sure ho?')) return;
+    setResetting(true);
+    try {
+      const usersSnap = await get(ref(db, 'users'));
+      const removeOps = [];
+      if (usersSnap.exists()) {
+        usersSnap.forEach((child) => {
+          removeOps.push(remove(ref(db, `users/${child.key}/activity`)));
+        });
+      }
+      await Promise.all(removeOps);
+      const poolOps = POOL_NODE_KEYS.map((k) => set(ref(db, `gamePool/${k}/pool`), 0));
+      await Promise.all(poolOps);
+      await set(ref(db, 'gamePool/totalGamesPlayed'), 0);
+      await set(ref(db, 'gamePool/totalCoinsWon'), 0);
+      alert('✅ Sab kuch reset ho gaya!');
+    } catch (e) {
+      alert('❌ Reset mein error: ' + e.message);
+    }
+    setResetting(false);
+  };
 
   useEffect(() => {
     const unsub = onValue(ref(db, 'users'), (snap) => {
@@ -58,6 +82,22 @@ export default function GameStatsPage() {
 
   return (
     <AdminLayout title="🎮 Game Statistics">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <button
+          onClick={resetAllStats}
+          disabled={resetting}
+          style={{
+            background: resetting ? '#3a1a1a' : 'linear-gradient(135deg,#ff003c,#ff6b00)',
+            color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px',
+            fontFamily: 'Outfit,sans-serif', fontWeight: 700, fontSize: 14,
+            cursor: resetting ? 'not-allowed' : 'pointer', opacity: resetting ? 0.6 : 1,
+            boxShadow: resetting ? 'none' : '0 0 16px rgba(255,0,60,0.5)',
+            transition: 'all 0.2s',
+          }}
+        >
+          {resetting ? '⏳ Resetting...' : '🗑️ Reset All Stats'}
+        </button>
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
         <StatBox label="🏦 Total Pool" value={formatNumber(POOL_KEYS.reduce((s,k) => s + (gamePool[k]?.pool || 0), 0))} sub="coins" color="#ffbe0b" />
         <StatBox label="🎮 Total Games" value={formatNumber(gamePool.totalGamesPlayed || 0)} color="#9d00ff" />
