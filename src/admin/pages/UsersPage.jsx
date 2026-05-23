@@ -30,12 +30,12 @@ export default function UsersPage() {
 
   if (filter === 'Banned') filtered = filtered.filter(u => u.banned);
   if (filter === 'High Balance') filtered = filtered.filter(u => (u.coins || 0) >= 10000);
-  if (filter === 'Inactive') filtered = filtered.filter(u => u.lastActive && now - u.lastActive > 7 * 86400000);
+  if (filter === 'Inactive') filtered = filtered.filter(u => !u.lastActive || now - u.lastActive > 7 * 86400000);
 
   if (sort === 'Coins ↓') filtered.sort((a, b) => (b.coins || 0) - (a.coins || 0));
   if (sort === 'Coins ↑') filtered.sort((a, b) => (a.coins || 0) - (b.coins || 0));
-  if (sort === 'Newest')  filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  if (sort === 'Oldest')  filtered.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  if (sort === 'Newest')  filtered.sort((a, b) => (b.createdAt || (b.joinedAt ? new Date(b.joinedAt).getTime() : 0)) - (a.createdAt || (a.joinedAt ? new Date(a.joinedAt).getTime() : 0)));
+  if (sort === 'Oldest')  filtered.sort((a, b) => (a.createdAt || (a.joinedAt ? new Date(a.joinedAt).getTime() : 0)) - (b.createdAt || (b.joinedAt ? new Date(b.joinedAt).getTime() : 0)));
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const current = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -99,7 +99,7 @@ export default function UsersPage() {
                     <td style={{ ...tdStyle, color: '#ffbe0b', fontWeight: 700 }}>{formatNumber(u.coins || 0)} 🪙</td>
                     <td style={{ ...tdStyle, color: '#00f0ff', textAlign: 'center' }}>{u.streak || 0} 🔥</td>
                     <td style={tdStyle}><BadgeStatus status={u.banned ? 'banned' : 'active'} /></td>
-                    <td style={{ ...tdStyle, color: '#8e8e9f', fontSize: 12 }}>{u.createdAt ? formatDateOnly(new Date(u.createdAt).toISOString()) : '—'}</td>
+                    <td style={{ ...tdStyle, color: '#8e8e9f', fontSize: 12 }}>{(u.createdAt || u.joinedAt) ? formatDateOnly(u.joinedAt ? new Date(u.joinedAt).toISOString() : new Date(u.createdAt).toISOString()) : '—'}</td>
                     <td style={tdStyle}>
                       <button onClick={() => navigate(`/admin/users/${u.uid}`)} className="admin-btn" style={btnStyle('#9d00ff')}>
                         View

@@ -74,7 +74,18 @@ export default function UserDetailPage() {
     } catch { showToast('Reset email nahi gayi!', 'error'); }
   };
 
-  if (loading) return <AdminLayout title="User Detail"><div className="skeleton" style={{ height: 300, borderRadius: 16 }} /></AdminLayout>;
+  const handleSendMessage = async () => {
+      if (!msgTitle.trim() || !msgBody.trim()) { showToast('Title aur message dono likhna zaruri hai!', 'error'); return; }
+      try {
+        await sendNotificationToUser(uid, msgTitle, msgBody);
+        await logAdminAction(adminUser.uid, adminUser.email, 'SEND_NOTIFICATION', uid, null, { title: msgTitle, body: msgBody });
+        showToast('Message user ko bhej di gayi!', 'success');
+        setModal(null);
+        setMsgTitle(''); setMsgBody('');
+      } catch { showToast('Message nahi gayi!', 'error'); }
+    };
+
+      if (loading) return <AdminLayout title="User Detail"><div className="skeleton" style={{ height: 300, borderRadius: 16 }} /></AdminLayout>;
   if (!user) return <AdminLayout title="User Detail"><div style={{ color: '#ff003c', padding: 40, fontFamily: 'Outfit,sans-serif' }}>User nahi mila!</div></AdminLayout>;
 
   const actTotal = activity.length;
@@ -102,7 +113,7 @@ export default function UserDetailPage() {
           <InfoRow label="Referred By" value={user.referredBy || '—'} />
           <InfoRow label="Streak" value={`${user.streak || 0} 🔥`} />
           <InfoRow label="Longest Streak" value={`${user.longestStreak || 0} 🔥`} />
-          <InfoRow label="Joined" value={user.createdAt ? formatDate(new Date(user.createdAt).toISOString()) : '—'} />
+          <InfoRow label="Joined" value={(user.joinedAt || user.createdAt) ? formatDate(user.joinedAt ? new Date(user.joinedAt).toISOString() : new Date(user.createdAt).toISOString()) : '—'} />
           <InfoRow label="Last Active" value={user.lastActive ? formatDate(new Date(user.lastActive).toISOString()) : '—'} />
         </Card>
 
@@ -168,8 +179,8 @@ export default function UserDetailPage() {
       </div>
 
       <ConfirmModal isOpen={modal === 'coins'} title="💰 Coins Adjust" message="Amount aur reason daalo:" confirmText="Adjust Karo" onConfirm={handleCoinAdjust} onCancel={() => setModal(null)}>
-        <input type="number" value={coinDelta} onChange={e => setCoinDelta(e.target.value)} placeholder="+500 ya -200" style={inputStyle} />
-        <input value={coinReason} onChange={e => setCoinReason(e.target.value)} placeholder="Reason likhna zaruri hai..." style={{ ...inputStyle, marginTop: 10 }} />
+        <input type="text" inputMode="numeric" value={coinDelta} onChange={e => setCoinDelta(e.target.value)} placeholder="+500 ya -200" style={inputStyle} enterKeyHint="next" />
+        <input value={coinReason} onChange={e => setCoinReason(e.target.value)} placeholder="Reason likhna zaruri hai..." style={{ ...inputStyle, marginTop: 10 }} enterKeyHint="done" onKeyDown={e => e.key === 'Enter' && handleCoinAdjust()} />
       </ConfirmModal>
 
       <ConfirmModal isOpen={modal === 'ban'} title={user.banned ? '✅ User Unban Karo' : '🚫 User Ban Karo'} message={user.banned ? 'Is user ka ban hatana chahte ho?' : 'Ban karne ka reason daalo:'} confirmText={user.banned ? 'Unban Karo' : 'Ban Karo'} danger={!user.banned} onConfirm={handleBan} onCancel={() => setModal(null)}>
