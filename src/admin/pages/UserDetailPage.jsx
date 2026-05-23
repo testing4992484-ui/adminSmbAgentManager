@@ -5,7 +5,7 @@ import BadgeStatus from '../components/BadgeStatus';
 import UserAvatar from '../components/UserAvatar';
 import ConfirmModal from '../components/ConfirmModal';
 import { useAdmin } from '../context/AdminContext';
-import { getUserOnce, banUser, adjustCoins, resetUserPassword, logAdminAction } from '../utils/adminFirebase';
+import { getUserOnce, banUser, adjustCoins, resetUserPassword, logAdminAction, sendNotificationToUser } from '../utils/adminFirebase';
 import { db } from '../../config/firebase';
 import { ref, onValue } from 'firebase/database';
 import { formatDate, formatNumber, coinsToINR } from '../utils/formatters';
@@ -21,6 +21,8 @@ export default function UserDetailPage() {
   const [coinDelta, setCoinDelta] = useState('');
   const [coinReason, setCoinReason] = useState('');
   const [banReason, setBanReason] = useState('');
+  const [msgTitle, setMsgTitle] = useState('');
+  const [msgBody, setMsgBody] = useState('');
   const [actPage, setActPage] = useState(1);
   const ACT_PER_PAGE = 25;
 
@@ -111,6 +113,7 @@ export default function UserDetailPage() {
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button onClick={() => setModal('coins')} className="admin-btn" style={actionBtn('#9d00ff')}>💰 Coins Adjust</button>
+              <button onClick={() => setModal('message')} className="admin-btn" style={actionBtn('#ff9500')}>📨 Send Message</button>
             <button onClick={() => setModal('ban')} className="admin-btn" style={actionBtn(user.banned ? '#39ff14' : '#ff003c')}>
               {user.banned ? '✅ Unban' : '🚫 Ban User'}
             </button>
@@ -174,6 +177,11 @@ export default function UserDetailPage() {
       </ConfirmModal>
 
       <ConfirmModal isOpen={modal === 'reset'} title="🔑 Password Reset" message={`${user.email} pe password reset email bhejein?`} confirmText="Email Bhejo" onConfirm={handlePasswordReset} onCancel={() => setModal(null)} />
+
+        <ConfirmModal isOpen={modal === 'message'} title="📨 User ko Message Bhejo" message="Yah message user ke panel mein notification ki tarah dikhega:" confirmText="Bhejo" onConfirm={handleSendMessage} onCancel={() => { setModal(null); setMsgTitle(''); setMsgBody(''); }}>
+          <input value={msgTitle} onChange={e => setMsgTitle(e.target.value)} placeholder="Title (jaise: Admin Notice)" style={inputStyle} />
+          <textarea value={msgBody} onChange={e => setMsgBody(e.target.value)} placeholder="Message likhao yahan..." rows={3} style={{ ...inputStyle, marginTop: 10, resize: 'vertical', lineHeight: 1.5 }} />
+        </ConfirmModal>
     </AdminLayout>
   );
 }
